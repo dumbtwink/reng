@@ -9,7 +9,7 @@ import (
 )
 
 type polygon struct {
-	vertices [64][2]float64
+	vertices [64][3]float64
 	amount   int
 }
 
@@ -45,6 +45,17 @@ func DrawCircle(img image.Image, r, x, y float64, R, G, B, A uint8) {
 func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 	incl := (by - ay) / (bx - ax)
 	var oct, cnt int
+	if math.Floor(bx)-math.Floor(ax) == 0 {
+		if ay < by {
+			for i := ay; i < by; i++ {
+				img.(*image.RGBA).Set(int(math.Ceil(ax)), int(math.Ceil(i)), color.RGBA{R: R, G: G, B: B, A: A})
+			}
+		} else {
+			for i := ay; i > by; i-- {
+				img.(*image.RGBA).Set(int(math.Ceil(ax)), int(math.Ceil(i)), color.RGBA{R: R, G: G, B: B, A: A})
+			}
+		}
+	}
 	if ax < bx {
 		for i := ax; i < bx; i++ {
 			if ay < by {
@@ -53,7 +64,9 @@ func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 				cnt++
 				for j := float64(oct) * incl; j < float64(cnt)*incl; j += 0.1 {
 					img.(*image.RGBA).Set(int(math.Ceil(i)), int(math.Ceil(j)+ay), color.RGBA{R: R, G: G, B: B, A: A})
-
+					if j+ay > by {
+						break
+					}
 				}
 			} else {
 				img.(*image.RGBA).Set(int(math.Ceil(i)), int(float64(cnt)*incl+ay), color.RGBA{R: R, G: G, B: B, A: A})
@@ -61,7 +74,9 @@ func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 				cnt++
 				for j := float64(oct) * incl; j > float64(cnt)*incl; j -= 0.1 {
 					img.(*image.RGBA).Set(int(math.Ceil(i)), int(math.Ceil(j)+ay), color.RGBA{R: R, G: G, B: B, A: A})
-
+					if j+ay < by {
+						break
+					}
 				}
 			}
 		}
@@ -73,7 +88,9 @@ func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 				cnt--
 				for j := float64(oct) * incl; j < float64(cnt)*incl; j += 0.1 {
 					img.(*image.RGBA).Set(int(math.Ceil(i)), int(math.Ceil(j)+ay), color.RGBA{R: R, G: G, B: B, A: A})
-
+					if j+ay > by {
+						break
+					}
 				}
 			} else {
 				img.(*image.RGBA).Set(int(math.Ceil(i)), int(float64(cnt)*incl+ay), color.RGBA{R: R, G: G, B: B, A: A})
@@ -81,7 +98,9 @@ func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 				cnt--
 				for j := float64(oct) * incl; j > float64(cnt)*incl; j -= 0.1 {
 					img.(*image.RGBA).Set(int(math.Ceil(i)), int(math.Ceil(j)+ay), color.RGBA{R: R, G: G, B: B, A: A})
-
+					if j+ay < by {
+						break
+					}
 				}
 			}
 		}
@@ -95,21 +114,51 @@ func DrawPolygon(img image.Image, poly polygon, R, G, B, A uint8) {
 	DrawLine(img, poly.vertices[0][0], poly.vertices[0][1], poly.vertices[poly.amount-1][0], poly.vertices[poly.amount-1][1], R, G, B, A)
 }
 
-func (poly polygon) rotate(radians float64) polygon {
+func (poly polygon) rotate(radians float64, axis int, override bool, x, y, z float64) polygon {
 	var output polygon
-	var xsum, ysum float64
-	for i := 0; i < poly.amount; i++ {
-		xsum += poly.vertices[i][0]
-		ysum += +poly.vertices[i][1]
+	var xsum, ysum, avarageX, avarageY float64
+	var slotx, sloty int
+	switch axis {
+	case 0:
+		slotx, sloty = 0, 1
+		avarageX = x
+		avarageY = y
+		break
+	case 1:
+		slotx, sloty = 0, 2
+		avarageX = x
+		avarageY = z
+		break
+	case 2:
+		slotx, sloty = 1, 2
+		avarageX = y
+		avarageY = z
+		break
 	}
-	avarageX := (xsum) / float64(poly.amount)
-	avarageY := (ysum) / float64(poly.amount)
+	if !override {
+		for i := 0; i < poly.amount; i++ {
+			xsum += poly.vertices[i][slotx]
+			ysum += poly.vertices[i][sloty]
+		}
+		avarageX = (xsum) / float64(poly.amount)
+		avarageY = (ysum) / float64(poly.amount)
+	}
 	for i := 0; i < poly.amount; i++ {
-		tmpangle := math.Atan((poly.vertices[i][1] - avarageY) / (poly.vertices[i][0] - avarageX))
-		tmpradius := (poly.vertices[i][0] - avarageX) / math.Cos(tmpangle)
+		tmpangle := math.Atan((poly.vertices[i][sloty] - avarageY) / (poly.vertices[i][slotx] - avarageX))
+		tmpradius := (poly.vertices[i][slotx] - avarageX) / math.Cos(tmpangle)
 		relativeX := math.Cos(radians+tmpangle) * tmpradius
 		relativeY := math.Sin(radians+tmpangle) * tmpradius
-		output.vertices[i] = [2]float64{relativeX + avarageX, relativeY + avarageY}
+		switch axis {
+		case 0:
+			output.vertices[i] = [3]float64{relativeX + avarageX, relativeY + avarageY, poly.vertices[i][2]}
+			break
+		case 1:
+			output.vertices[i] = [3]float64{relativeX + avarageX, poly.vertices[i][1], relativeY + avarageY}
+			break
+		case 2:
+			output.vertices[i] = [3]float64{poly.vertices[i][0], relativeX + avarageX, relativeY + avarageY}
+			break
+		}
 	}
 	output.amount = poly.amount
 	return output
