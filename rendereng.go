@@ -9,9 +9,8 @@ import (
 )
 
 type polygon struct {
-	p1 [2]float64
-	p2 [2]float64
-	p3 [2]float64
+	vertices [64][2]float64
+	amount   int
 }
 
 func CreateCanvas(x, y int) image.Image {
@@ -90,32 +89,28 @@ func DrawLine(img image.Image, ax, ay, bx, by float64, R, G, B, A uint8) {
 }
 
 func DrawPolygon(img image.Image, poly polygon, R, G, B, A uint8) {
-	DrawLine(img, poly.p1[0], poly.p1[1], poly.p2[0], poly.p2[1], R, G, B, A)
-	DrawLine(img, poly.p2[0], poly.p2[1], poly.p3[0], poly.p3[1], R, G, B, A)
-	DrawLine(img, poly.p1[0], poly.p1[1], poly.p3[0], poly.p3[1], R, G, B, A)
+	for i := 0; i < poly.amount-1; i++ {
+		DrawLine(img, poly.vertices[i][0], poly.vertices[i][1], poly.vertices[i+1][0], poly.vertices[i+1][1], R, G, B, A)
+	}
+	DrawLine(img, poly.vertices[0][0], poly.vertices[0][1], poly.vertices[poly.amount-1][0], poly.vertices[poly.amount-1][1], R, G, B, A)
 }
 
 func (poly polygon) rotate(radians float64) polygon {
 	var output polygon
-	avarageX := (poly.p1[0] + poly.p2[0] + poly.p3[0]) / 3
-	avarageY := (poly.p1[1] + poly.p2[1] + poly.p3[1]) / 3
-
-	p1angle := math.Atan((poly.p1[1] - avarageY) / (poly.p1[0] - avarageX))
-	p1radius := (poly.p1[0] - avarageX) / math.Cos(p1angle)
-	relativeX := math.Cos(radians+p1angle) * p1radius
-	relativeY := math.Sin(radians+p1angle) * p1radius
-	output.p1 = [2]float64{relativeX + avarageX, relativeY + avarageY}
-
-	p2angle := math.Atan((poly.p2[1] - avarageY) / (poly.p2[0] - avarageX))
-	p2radius := (poly.p2[0] - avarageX) / math.Cos(p2angle)
-	relativeX = math.Cos(radians+p2angle) * p2radius
-	relativeY = math.Sin(radians+p2angle) * p2radius
-	output.p2 = [2]float64{relativeX + avarageX, relativeY + avarageY}
-
-	p3angle := math.Atan((poly.p3[1] - avarageY) / (poly.p3[0] - avarageX))
-	p3radius := (poly.p3[0] - avarageX) / math.Cos(p3angle)
-	relativeX = math.Cos(radians+p3angle) * p3radius
-	relativeY = math.Sin(radians+p3angle) * p3radius
-	output.p3 = [2]float64{relativeX + avarageX, relativeY + avarageY}
+	var xsum, ysum float64
+	for i := 0; i < poly.amount; i++ {
+		xsum += poly.vertices[i][0]
+		ysum += +poly.vertices[i][1]
+	}
+	avarageX := (xsum) / float64(poly.amount)
+	avarageY := (ysum) / float64(poly.amount)
+	for i := 0; i < poly.amount; i++ {
+		tmpangle := math.Atan((poly.vertices[i][1] - avarageY) / (poly.vertices[i][0] - avarageX))
+		tmpradius := (poly.vertices[i][0] - avarageX) / math.Cos(tmpangle)
+		relativeX := math.Cos(radians+tmpangle) * tmpradius
+		relativeY := math.Sin(radians+tmpangle) * tmpradius
+		output.vertices[i] = [2]float64{relativeX + avarageX, relativeY + avarageY}
+	}
+	output.amount = poly.amount
 	return output
 }

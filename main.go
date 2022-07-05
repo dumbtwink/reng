@@ -1,15 +1,18 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
-var poly = polygon{p1: [2]float64{50, 300}, p2: [2]float64{213, 100}, p3: [2]float64{430, 350}}
+var poly = polygon{[64][2]float64{{50, 300}, {213, 100}, {430, 350}, {232, 459}}, 4}
 
 func main() {
 	for i := float64(0); i < 100; i++ {
 		img := CreateCanvas(500, 500)
-		DrawPolygon(img, poly, 0, 255, 0, 255)
+		poly = poly.rotate(000.1)
+		DrawPolygon(img, poly, uint8(math.Ceil(255/(i/10))), 0, uint8(math.Ceil(2.55*i)), 255)
 		var name string
-		poly = poly.rotate(000000000000000000000000000000000000000.1)
 		name = fmt.Sprintf("output/%v.png", i)
 		SaveImage(img, name)
 	}
